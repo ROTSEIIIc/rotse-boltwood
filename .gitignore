@@ -1,0 +1,61 @@
+# ---------------------------------------------------------------
+# AI assistant context: internal notes, never published
+# ---------------------------------------------------------------
+CLAUDE.md
+CLAUDE.local.md
+**/CLAUDE.md
+.claude/
+.mcp.json
+AGENTS.md
+GEMINI.md
+.gemini/
+.cursor/
+.cursorrules
+.windsurfrules
+.aider*
+.github/copilot-instructions.md
+readthisdummy.md
+
+# ---------------------------------------------------------------
+# Python / uv  (commit uv.lock, pyproject.toml and .python-version)
+# ---------------------------------------------------------------
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+.ipynb_checkpoints/
+
+# ---------------------------------------------------------------
+# Secrets and local config
+# ---------------------------------------------------------------
+.env
+.env.*
+!.env.example
+*.local.yaml
+*.secret.yaml
+
+# ---------------------------------------------------------------
+# Runtime output
+# ---------------------------------------------------------------
+*.log
+log/
+logs/
+
+# ---------------------------------------------------------------
+# OS / editors
+# ---------------------------------------------------------------
+.DS_Store
+._*
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*~
