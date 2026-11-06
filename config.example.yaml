@@ -1,0 +1,35 @@
+# rotse-boltwood configuration. Every key is optional: defaults are shown.
+# On the host: /etc/rotse-boltwood/config.yaml. Env overrides: BOLTWOOD_<KEY>, BOLTWOOD_<SECTION>__<KEY>.
+
+station: boltwood
+# Serial device or pyserial URL. On Linux use the stable by-id name, not /dev/ttyUSBn:
+#   ls /dev/serial/by-id/   ->   usb-FTDI_FT232R_USB_UART_<serial>-if00-port0
+port: /dev/ttyUSB0
+baud: 4800                    # fixed by the head firmware
+ack: a                        # ACK char to the head; 'a' confirmed on SN 04015 (thusser uses 'A')
+repoll_s: 2.0                 # send a poll after this long without a complete message
+reconnect_s: 5.0              # wait before reopening the port after an error
+max_age_s: 30                 # older reports count as not ok (must be >= 3 * repoll_s)
+history: 200                  # messages kept for /api/v1/frames
+
+api:
+  host: 0.0.0.0
+  port: 8081                  # 8082 = weather mast
+
+pyobs_weather:
+  # GET /api/v1/pyobs-weather/<name>: one pyobs-weather JSON station per document.
+  # Document name -> {report value -> JSON key (pyobs-weather SENSOR_TYPES code)}.
+  # Report values: sky_minus_ambient_c, ambient_c, humidity_pct, dew_point_c, wind_kmh,
+  #                rain, wet, rain_or_wet (1.0 if rain OR wet sensor fires).
+  # A document is 503 if any of its values is invalid, so keep things that fail
+  # independently (wet head: sky + wind invalid, rain valid) in separate documents.
+  documents:
+    rain:    {rain_or_wet: rain}
+    sky:     {sky_minus_ambient_c: skytemp}
+    ambient: {ambient_c: temp, humidity_pct: humid, dew_point_c: dewpoint}
+    wind:    {wind_kmh: windspeed}
+
+sim:                          # only used with --sim
+  seed: 0
+  report_interval_s: 2.0
+  sky_c: -25.0

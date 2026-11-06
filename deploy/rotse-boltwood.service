@@ -1,0 +1,38 @@
+# /etc/systemd/system/rotse-boltwood.service
+#
+#   sudo cp deploy/rotse-boltwood.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now rotse-boltwood
+#   journalctl -u rotse-boltwood -f
+#
+# Not deployed anywhere yet. User/paths follow rotse-weather-mast; adjust for ocs-server.
+# The app sends READY=1 once the serial loop runs, then WATCHDOG=1 only while the loop's
+# heartbeat is fresh, so a hung loop gets the service restarted.
+
+[Unit]
+Description=rotse-boltwood (Boltwood CS-II head over RS-485, JSON API on :8081)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=notify
+NotifyAccess=main
+User=boltwood
+Group=boltwood
+SupplementaryGroups=dialout
+WorkingDirectory=/opt/rotse-boltwood
+ExecStart=/opt/rotse-boltwood/.venv/bin/rotse-boltwood --config /etc/rotse-boltwood/config.yaml
+Environment=PYTHONUNBUFFERED=1
+
+Restart=always
+RestartSec=10
+TimeoutStartSec=60
+WatchdogSec=120
+
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target

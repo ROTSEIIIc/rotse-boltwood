@@ -46,6 +46,7 @@ htmlcov/
 # Runtime output
 # ---------------------------------------------------------------
 *.log
+*.log.*
 log/
 logs/
 
@@ -59,3 +60,15 @@ Thumbs.db
 .vscode/
 *.swp
 *~
+
+# ---------------------------------------------------------------
+# rotse-boltwood specific
+# ---------------------------------------------------------------
+# rotse-boltwood-probe recordings. Captures kept as protocol fixtures go in
+# tests/captures/ and ARE committed; anything recorded elsewhere is scratch.
+*.jsonl
+*.jsonl.*
+!tests/captures/*.jsonl
+
+# Local notes for Claude, not in git
+CLAUDE.md

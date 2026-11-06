@@ -1,0 +1,47 @@
+[project]
+name = "rotse-boltwood"
+version = "0.1.0"
+description = "ROTSE-IIIc Boltwood Cloud Sensor II head over RS-485: JSON service + debug CLI"
+readme = "README.md"
+authors = [
+    { name = "Enzo Peres Afonso", email = "enzo.p.afonso@gmail.com" }
+]
+license = "MIT"
+requires-python = ">=3.11,<3.14"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
+    "pydantic>=2.7",
+    "pydantic-settings[yaml]>=2.4",
+    "pyserial>=3.5",
+]
+
+[project.urls]
+Repository = "https://github.com/ROTSEIIIc/rotse-boltwood"
+
+[project.scripts]
+rotse-boltwood = "rotse_boltwood.main:main"
+rotse-boltwood-cli = "rotse_boltwood.cli:main"
+
+[dependency-groups]
+dev = [
+    "black>=24.0",
+    "httpx>=0.27",
+    "pytest>=8.0",
+]
+
+[build-system]
+requires = ["uv_build>=0.13.5,<0.14.0"]
+build-backend = "uv_build"
+
+[tool.black]
+line-length = 120
+target-version = ["py311"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = [
+    # fastapi's TestClient still imports httpx the old way; harmless.
+    "ignore::DeprecationWarning:fastapi.testclient",
+    "ignore:Using `httpx` with `starlette.testclient`",
+]
