@@ -5,29 +5,105 @@ service that keeps talking to the head and serves the latest report as JSON, plu
 checking and debugging. Same pattern as rotse-weather-mast (asyncio + FastAPI, latest value
 in memory, `--sim`, pydantic-settings, systemd unit).
 
-**Status 2026-11-06:** head SN 04015 (firmware 67) running on the bench, 24 V bench supply,
-Waveshare isolated USB-RS485 adapter on a Mac. Protocol, service and CLI verified against the
-real head, including the pyobs-weather documents. Not deployed; no pyobs-weather station set up yet.
-Hardware notes and the bring-up story: [`docs/hardware-handoff.md`](docs/hardware-handoff.md).
+**Status 2026-11-25:** head SN 04015 (firmware 67) running on its **site wiring** (Cat cable,
+GX16-6 connector, box with a Mornsun 24 V supply and the Waveshare isolated USB-RS485 adapter),
+read from a Mac. Protocol, service and CLI verified against the real head, including the
+pyobs-weather documents. Not deployed; no pyobs-weather station set up yet.
+The bench bring-up notes (`docs/hardware-handoff.md`) were not carried over in the repo migration
+and are missing; the facts that matter are in this README and in `src/rotse_boltwood/protocol.py`.
 
-Contents: [Wiring](#wiring-bench) · [Quick start](#quick-start) · [CLI](#debug-cli-rotse-boltwood-cli) ·
+Contents: [Wiring](#wiring) · [Quick start](#quick-start) · [CLI](#debug-cli-rotse-boltwood-cli) ·
 [HTTP API](#http-api-8081) · [pyobs-weather](#pyobs-weather) · [Protocol](#protocol) · [Report fields](#d-sensor-report-fields) ·
 [Status codes](#status-codes) · [Errors and messages](#errors-notes-and-messages) ·
 [Configuration](#configuration) · [Layout](#layout) · [Sources](#sources)
 
 ---
 
-## Wiring (bench)
+## Wiring
 
-| Head pin (identify by continuity, see docs) | Goes to |
-|---|---|
-| +24 V | PSU + (24.0 V, current limit ~0.7 A) |
-| Power return (GND) | PSU − **and** adapter `PE` (the adapter is isolated: `PE` is its only ground reference) |
-| Data + / Data − | adapter `TA` / `TB`. Only one orientation works; swapped = nothing received at all. TODO: note which wire is on `TA` |
-| Shield | open on the bench |
+### Head connector (manual V0029 §9.3 / §21.5)
 
-Power: 24 V regulated, ~0.05–0.12 A normally, ~0.4 A with the heaters on, 0.63 A worst case.
-Never plug/unplug the head while powered. The wetness disc and the anemometer reach 70 °C.
+5-pin rectangular connector at the head; the "1" for pin 1 is moulded next to a side slot, pin 5
+has "2695" moulded over it. Colours are those of the original Boltwood cable.
+
+| Pin | Boltwood wire | Signal |
+|---|---|---|
+| 1 | red (pair 1) | Data− |
+| 2 | green (pair 1) | Data+ |
+| 3 | yellow (pair 2) | +24 V |
+| 4 | black (pair 2) | power return |
+| 5 | bare | shield (the head's lightning/ESD protection drains into it) |
+
+Never plug/unplug the head while powered (the manual warns a misregistered connector can damage
+it). Power: 24 V regulated and low-noise (noise stops the wetness detector), ~0.05–0.12 A normally,
+~0.4 A with the heaters on, 0.63 A worst case. The wetness disc and the anemometer reach 70 °C.
+
+### Site wiring (2026-11-25)
+
+```
+head ── Boltwood cable stub ── splice ── Cat cable ── GX16-6 plug ══ GX16-6 panel socket ── box:
+                                                       1,2 → Waveshare TB / TA
+                                                       3,4 → PSU +Vo / −Vo
+                                                       6   → Waveshare PE   (data reference)
+                                                       5   → shield (earth, or open: see below)
+mains → 3.15 A slow-blow fuse → PSU AC(L) pin 3, AC(N) pin 2
+```
+
+**Cable** (planned layout, T568B colours; TODO: confirm the colours actually used at the splice):
+
+| GX16 pin | Signal | Head pin | Cat wires |
+|---|---|---|---|
+| 1 | Data− | 1 red | orange (twisted pair with pin 2) |
+| 2 | Data+ | 2 green | white/orange |
+| 3 | +24 V | 3 yellow | blue + white/blue |
+| 4 | 0 V power return | 4 black | brown + white/brown |
+| 5 | shield | 5 bare | drain / foil |
+| 6 | data ground reference | 4 black | green + white/green |
+
+Pins 4 and 6 join only at the head (same topology as the bench, where the head's GND went to the
+PSU − and to the adapter `PE`): pin 6 carries no supply current, so the adapter's reference is
+clean. With pin 6 missing or swapped the head is never heard (**seen 2026-11-25**: pins 5 and 6
+swapped in the GX16 = 0 bytes received, polled or listening). Drop on the brown pair:
+≈ 0.053 V/m at 0.63 A (24 AWG copper, no CCA); for runs over ~30 m also link `PE` to −Vo in the
+box so the green pair shares the return. The head wants 22–25 V.
+
+**Box, as built** (by destination; TODO: fill in the rest and which GX16 pin each comes from):
+
+| Box terminal | Wire colour in the box | From GX16 pin |
+|---|---|---|
+| Waveshare `TB` | yellow | TODO (working orientation, 2026-11-25) |
+| Waveshare `TA` | TODO | TODO |
+| Waveshare `PE` | white | 6 (data reference) |
+| PSU pin 4 (+Vo) | TODO | 3 |
+| PSU pin 8 (−Vo) | TODO | 4 |
+| earth / open | TODO | 5 (shield) |
+
+Rules: socket (recessed) contacts on the live panel side; GX16 is not for live plugging, switch
+mains off first; GX16 is only splash-proof mated (socket facing down or hooded, drip loop, cap it
+when open). The Cat cable carries 24 V: never plug it into network gear.
+
+**Power supply: MORNSUN LD30-23B24R2A2S** (LD30-23BxxR2 series datasheet, rev 2025.05.14-A/7):
+85–305 VAC / 100–430 VDC in, 24 V ±2 % 1.3 A (31.2 W), not adjustable, ripple ≤ 150 mV p-p,
+hiccup short-circuit protection, −40…+85 °C (derate above 50 °C), Class II (no earth terminal),
+2 A fuse inside. A2S terminals: 1 NC, 2 AC(N), 3 AC(L) | 4 +Vo, 5–7 NC, 8 −Vo. The datasheet asks
+for an **external 3.15 A slow-blow fuse** and, at the output, 1 µF/100 V ceramic + 10 µF/50 V
+electrolytic + SMBJ30A TVS. Don't use the NC terminals as tie points (pin 1 sits next to N).
+
+**Earthing:** the 24 V side (−Vo, Waveshare `PE`) floats; never earth it (that would need the
+datasheet's Class I circuit). Only mains earth, the box (if metal) and the cable shield (pin 5)
+go to earth, on a dedicated stud/terminal. Leaving the shield open works (it did on the bench) but
+gives the head's surge protection no path; for the permanent install, earth it at the box end and
+earth the mast/bracket to a ground rod (manual §13).
+
+**Verified 2026-11-25** (Mac, `/dev/cu.usbserial-BH00RNEW`): D/T/K/W frames, no junk; supply at
+the head 24.1 V idle, 23.8 V with the wetness heater on; a wet/rain event (sky −998, anemometer
+wet, rain R→r) came through correctly.
+
+### Bench (2026-11-06, for reference)
+
+Head +24 V → bench PSU + (24.0 V, limit ~0.7 A); head GND → PSU − **and** adapter `PE` (the
+adapter is isolated: `PE` is its only ground reference); Data+/Data− → `TA`/`TB` (only one
+orientation works; swapped = nothing received); shield open.
 
 ## Quick start
 
@@ -454,7 +530,7 @@ in `values` either way.
 | Message | Meaning | What to check |
 |---|---|---|
 | `port: <exception>` | the serial port can't be opened or failed (e.g. `SerialException: could not open port ...: No such file or directory`) | adapter plugged in? right device name? another program using it? `dialout` group? |
-| `no report yet` | port open but no D frame since start | head powered? wiring/`PE`/polarity? `rotse-boltwood-cli monitor PORT --raw` |
+| `no report yet` | port open but no D frame since start | head powered? wiring/`PE` (GX16 pin 6)/polarity? `rotse-boltwood-cli monitor PORT --raw` |
 | `stale: last report <n> s ago (max_age_s 30)` | reports stopped | head lost power or the cable; `last_message_age_s` and `counts` in health |
 | (a report error from the table above) | head reports a fault | see the table |
 | `serial loop not running` | health only: loop thread dead or hung | service log; systemd restarts it via the watchdog |
@@ -526,7 +602,6 @@ src/rotse_boltwood/
   cli.py        rotse-boltwood-cli
 tests/captures/ real traffic from SN 04015 (polled, unpolled)
 deploy/         systemd unit (not deployed yet)
-docs/           hardware investigation notes
 ```
 
 Deploy (not done yet): target `ocs-server`. Venv in `/opt/rotse-boltwood`, config in
