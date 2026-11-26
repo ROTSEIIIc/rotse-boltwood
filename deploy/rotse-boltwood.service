@@ -5,7 +5,8 @@
 #   sudo systemctl enable --now rotse-boltwood
 #   journalctl -u rotse-boltwood -f
 #
-# Not deployed anywhere yet. User/paths follow rotse-weather-mast; adjust for ocs-server.
+# Expects the git clone in /opt/rotse-boltwood with its .venv (uv sync), a system user
+# `boltwood` in `dialout`, and /etc/rotse-boltwood/config.yaml. Full steps: README "Install".
 # The app sends READY=1 once the serial loop runs, then WATCHDOG=1 only while the loop's
 # heartbeat is fresh, so a hung loop gets the service restarted.
 
